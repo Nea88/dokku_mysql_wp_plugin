@@ -1,13 +1,12 @@
-# MySql plugin for Dokku
+# MySql Wordpress plugin plugin for Dokku, based on [hughfletcher/dokku-mysql-plugin](https://github.com/hughfletcher/dokku-mysql-plugin)
 
-Create mysql containers on the fly or link them persistantly to your web app you push up to your Dokku install.
+Create mysql containers on the fly or link them persistantly to your web app you push up to your Dokku install, if wp-config.php presents in root dicrectory.
 See [Dokku](https://github.com/progrium/dokku) for the bigger picture.
 
 ##Install
 
     cd /var/lib/dokku/plugins
     git clone https://github.com/hughfletcher/dokku-mysql-plugin mysql
-    chmod +x mysql/install mysql/commands mysql/pre-release
     dokku plugins-install
 
 ##Commands
@@ -36,6 +35,16 @@ Create a new DB:
            Internal port: 3306
 
 Deploy your app with the same name (client side):
+    Put in your project_directory/wp-config.php
+    
+        extract(parse_url($_ENV["DATABASE_URL"]));
+        define( 'WP_LOCAL_DEV', false );
+        define( 'DB_NAME', substr($path, 1) );
+        define( 'DB_USER', $user );
+        define( 'DB_PASSWORD', $pass );
+        define( 'DB_HOST', $host );
+
+terminal
 
     $ git remote add dokku git@server:foo
     $ git push dokku master
@@ -78,5 +87,5 @@ Database informations:
     dokku mysql:info foo
 
 ##Thanks
-
+* [hughfletcher/dokku-mysql-plugin](https://github.com/hughfletcher/dokku-mysql-plugin)
 * [Kloadut/dokku-pg-plugin](https://github.com/Kloadut/dokku-pg-plugin)
