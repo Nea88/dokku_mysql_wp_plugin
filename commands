@@ -132,7 +132,7 @@ case "$1" in
         dokku config:set $APP "DATABASE_URL=mysql2://admin:$DB_PASSWORD@$IP/db"
         echo
         echo "-----> $APP linked to $DB_IMAGE database"
-        #rm "$DOKKU_ROOT/.mysql/pass_$APP"
+        rm "$DOKKU_ROOT/.mysql/pass_$APP"
     fi
     ;;
 
