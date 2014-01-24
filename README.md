@@ -1,13 +1,12 @@
-# MySql plugin for Dokku
+# MySql Wordpress plugin plugin for Dokku based on (https://github.com/hughfletcher/dokku-mysql-plugin)
 
-Create mysql containers on the fly or link them persistantly to your web app you push up to your Dokku install.
+Create mysql containers on the fly or link them persistantly to your web app you push up to your Dokku install, if wp-config.php presents in root dicrectory.
 See [Dokku](https://github.com/progrium/dokku) for the bigger picture.
 
 ##Install
 
     cd /var/lib/dokku/plugins
     git clone https://github.com/hughfletcher/dokku-mysql-plugin mysql
-    chmod +x mysql/install mysql/commands mysql/pre-release
     dokku plugins-install
 
 ##Commands
@@ -78,5 +77,5 @@ Database informations:
     dokku mysql:info foo
 
 ##Thanks
-
+* [hughfletcher/dokku-mysql-plugin](https://github.com/hughfletcher/dokku-mysql-plugin)
 * [Kloadut/dokku-pg-plugin](https://github.com/Kloadut/dokku-pg-plugin)
