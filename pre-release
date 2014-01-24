@@ -1,0 +1,18 @@
+#!/bin/bash
+APP="$1"; IMAGE="app/$APP"
+# Check for wp-config.php
+
+id=$(docker run -d $IMAGE test -f app/wp-config.php)
+if [ $(docker wait $id) -ne 0 ]; then
+ echo "no config"
+  exit 0
+fi
+
+if [ -f "/home/dokku/.mysql/pass_$APP" ]; then
+    echo "image finded"
+    dokku mysql:link $APP
+else
+    echo "--------> starting mysql "
+    dokku mysql:create $APP
+fi
+echo "ended"
