@@ -8,9 +8,9 @@ if [ $(docker wait $id) -ne 0 ]; then
   exit 0
 fi
 
-if [ -f "/home/dokku/.mysql/volume_$APP" ]; then
-    dokku mysql:link $APP $APP
-    echo "database is already linked"
+if [ -f "/home/dokku/.mysql/pass_$APP" ]; then
+       dokku mysql:link $APP $APP
+   echo "database is already linked"
 else
     echo "--------> starting mysql creating"
     dokku mysql:create $APP $APP
