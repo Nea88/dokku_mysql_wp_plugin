@@ -1,4 +1,4 @@
-#!/bin/bash
+#/!/bin/bash
 set -e; 
 
 #Easier to maintain when using this than literal paths
@@ -187,6 +187,21 @@ case "$1" in
        echo "Database password does not exist"
        exit 1
     fi
+
+    echo "Saving old sql dump"
+    if [[ !  -d "$DOKKU_ROOT/.mysql/dumps" ]]; then
+        mkdir $DOKKU_ROOT/.mysql/dumps
+        chown dokku $DOKKU_ROOT/.mysql/dumps
+    fi
+
+    if [[ !  -d "$DOKKU_ROOT/.mysql/dumps/$APP" ]]; then
+        mkdir $DOKKU_ROOT/.mysql/dumps/$APP
+        chown dokku $DOKKU_ROOT/.mysql/dumps/$APP
+    fi
+
+    dokku mysql:save_dump $APP $DOKKU_ROOT/.mysql/dumps/$APP/$APP.`date "+%Y-%m-%d-%T"`.sql
+
+    echo "Old sql dump saved"
 
     DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/passwords/$APP.pwd")
     
