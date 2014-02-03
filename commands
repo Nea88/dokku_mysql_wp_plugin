@@ -44,14 +44,14 @@ case "$1" in
         # Temporarily store it to a file
         if [[ ! -d $DOKKU_ROOT/.mysql ]]; then
             mkdir -p $DOKKU_ROOT/.mysql
-            mkdir -p $DOKKU_ROOT/.mysql/passwords
+          #  mkdir -p $DOKKU_ROOT/.mysql/passwords
             chown -R dokku: $DOKKU_ROOT/.mysql
-            chown -R dokku: $DOKKU_ROOT/.mysql
+          #  chown -R dokku: $DOKKU_ROOT/.mysql
         fi
         echo $DB_PASS > "$DOKKU_ROOT/.mysql/pwd_$APP"
-        echo $DB_PASS > "$DOKKU_ROOT/.mysql/passwords/$APP.pwd"
+      #  echo $DB_PASS > "$DOKKU_ROOT/.mysql/passwords/$APP.pwd"
         chown dokku: "$DOKKU_ROOT/.mysql/pwd_$APP"
-        chown dokku: "$DOKKU_ROOT/.mysql/passwords/$APP.pwd"
+      #  chown dokku: "$DOKKU_ROOT/.mysql/passwords/$APP.pwd"
     fi
     # Fork DB image
     ID=$(docker run -d hughfletcher/mysql exit 0)    
@@ -100,8 +100,8 @@ case "$1" in
     fi
     dokku config:unset $APP "USER PASS IP DBNAME"
     # Remove persistent password
-    if [[ -d "$DOKKU_ROOT/.mysql/passwords/$APP.pwd" ]]; then
-        rm -rf "$DOKKU_ROOT/.mysql/passwords/$APP.pwd"
+    if [[ -d "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
+        rm -rf "$DOKKU_ROOT/.mysql/pwd_$APP"
     fi
     
     echo
@@ -117,8 +117,8 @@ case "$1" in
     echo
     echo "       Host: $IP"
     echo "       User: 'admin'"
-    if [[ -f "$DOKKU_ROOT/.mysql/passwords/$APP.pwd" ]]; then
-        echo "       Password: '$(cat "$DOKKU_ROOT/.mysql/passwords/$APP.pwd")'"
+    if [[ -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
+        echo "       Password: '$(cat "$DOKKU_ROOT/.mysql/pwd_$APP")'"
     fi
     echo "       Database: 'db'"
     # echo "       Public port: $PORT"
@@ -135,15 +135,16 @@ case "$1" in
         fi
         DB_IMAGE="mysql/$3"
         # Check temporarily file
-        if [[ ! -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
+        if [[ -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
             echo "Database is already linked"
             exit 1
         fi
 
-        DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$APP")
+        DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$3")
         ID=$(docker ps -a | grep "$DB_IMAGE":latest |  awk '{print $1}')
         IP=`echo $(docker inspect -format="{{ .NetworkSettings.IPAddress }}" $ID)`
-        rm "$DOKKU_ROOT/.mysql/pwd_$APP"
+        cp "$DOKKU_ROOT/.mysql/pwd_$3" "$DOKKU_ROOT/.mysql/pwd_$APP"
+        #rm "$DOKKU_ROOT/.mysql/pwd_$3"
 
         dokku config:set $APP "USER=admin PASS=$DB_PASSWORD IP=$IP DBNAME=db"
 
@@ -160,12 +161,12 @@ case "$1" in
     IP=`echo $(docker inspect -format="{{ .NetworkSettings.IPAddress }}" $ID)`
 
     # Check password file
-    if [[ ! -f "$DOKKU_ROOT/.mysql/passwords/$APP.pwd" ]]; then
+    if [[ ! -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
        echo "Database password does not exist"
        exit 1
     fi
 
-    DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/passwords/$APP.pwd")
+    DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$APP")
 
     FILE_NAME=$3
     if [[ -z $3 ]]; then
@@ -183,7 +184,7 @@ case "$1" in
     IP=`echo $(docker inspect -format="{{ .NetworkSettings.IPAddress }}" $ID)`
     FILE_NAME=$3
     # Check password file
-    if [[ ! -f "$DOKKU_ROOT/.mysql/passwords/$APP.pwd" ]]; then
+    if [[ ! -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
        echo "Database password does not exist"
        exit 1
     fi
@@ -203,7 +204,7 @@ case "$1" in
 
     echo "Old sql dump saved"
 
-    DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/passwords/$APP.pwd")
+    DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$APP")
     
    
     if [[ ! -f $FILE_NAME ]]; then
