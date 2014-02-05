@@ -1,4 +1,4 @@
-#!/bin/bash
+#/!/bin/bash
 set -e; 
 
 #Easier to maintain when using this than literal paths
@@ -44,10 +44,14 @@ case "$1" in
         # Temporarily store it to a file
         if [[ ! -d $DOKKU_ROOT/.mysql ]]; then
             mkdir -p $DOKKU_ROOT/.mysql
+          #  mkdir -p $DOKKU_ROOT/.mysql/passwords
             chown -R dokku: $DOKKU_ROOT/.mysql
+          #  chown -R dokku: $DOKKU_ROOT/.mysql
         fi
         echo $DB_PASS > "$DOKKU_ROOT/.mysql/pwd_$APP"
+      #  echo $DB_PASS > "$DOKKU_ROOT/.mysql/passwords/$APP.pwd"
         chown dokku: "$DOKKU_ROOT/.mysql/pwd_$APP"
+      #  chown dokku: "$DOKKU_ROOT/.mysql/passwords/$APP.pwd"
     fi
     # Fork DB image
     ID=$(docker run -d hughfletcher/mysql exit 0)    
@@ -94,6 +98,12 @@ case "$1" in
     if [[ -d "$DOKKU_ROOT/.mysql/volume_$APP" ]]; then
         rm -rf "$DOKKU_ROOT/.mysql/volume_$APP"
     fi
+    dokku config:unset $APP "USER PASS IP DBNAME"
+    # Remove persistent password
+    if [[ -d "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
+        rm -rf "$DOKKU_ROOT/.mysql/pwd_$APP"
+    fi
+    
     echo
     echo "-----> MySql container deleted: $DB_IMAGE"
     ;;
@@ -125,17 +135,18 @@ case "$1" in
         fi
         DB_IMAGE="mysql/$3"
         # Check temporarily file
-        if [[ ! -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
+        if [[ -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
             echo "Database is already linked"
             exit 1
         fi
 
-        DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$APP")
+        DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$3")
         ID=$(docker ps -a | grep "$DB_IMAGE":latest |  awk '{print $1}')
         IP=`echo $(docker inspect -format="{{ .NetworkSettings.IPAddress }}" $ID)`
-        rm "$DOKKU_ROOT/.mysql/pwd_$APP"
+        cp "$DOKKU_ROOT/.mysql/pwd_$3" "$DOKKU_ROOT/.mysql/pwd_$APP"
+        #rm "$DOKKU_ROOT/.mysql/pwd_$3"
 
-        dokku config:set $APP "DATABASE_URL=mysql2://admin:$DB_PASSWORD@$IP/db"
+        dokku config:set $APP "USER=admin PASS=$DB_PASSWORD IP=$IP DBNAME=db"
 
         echo
         echo "-----> $APP linked to $DB_IMAGE database"
@@ -144,6 +155,69 @@ case "$1" in
     fi
     ;;
 
+  mysql:save_dump)
+    DB_IMAGE=mysql/$APP
+    ID=$(docker ps -a | grep "$DB_IMAGE":latest |  awk '{print $1}')
+    IP=`echo $(docker inspect -format="{{ .NetworkSettings.IPAddress }}" $ID)`
+
+    # Check password file
+    if [[ ! -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
+       echo "Database password does not exist"
+       exit 1
+    fi
+
+    DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$APP")
+
+    FILE_NAME=$3
+    if [[ -z $3 ]]; then
+      echo "Database name will $APP"
+      FILE_NAME=$APP
+    fi
+
+    mysqldump -uadmin -h$IP -p$DB_PASSWORD -P3306 --quick db > $FILE_NAME
+    echo "Database dump saved"
+    ;;
+
+  mysql:load_dump)
+    DB_IMAGE=mysql/$APP
+    ID=$(docker ps -a | grep "$DB_IMAGE":latest |  awk '{print $1}')
+    IP=`echo $(docker inspect -format="{{ .NetworkSettings.IPAddress }}" $ID)`
+    FILE_NAME=$3
+    # Check password file
+    if [[ ! -f "$DOKKU_ROOT/.mysql/pwd_$APP" ]]; then
+       echo "Database password does not exist"
+       exit 1
+    fi
+
+    echo "Saving old sql dump"
+    if [[ !  -d "$DOKKU_ROOT/.mysql/dumps" ]]; then
+        mkdir $DOKKU_ROOT/.mysql/dumps
+        chown dokku $DOKKU_ROOT/.mysql/dumps
+    fi
+
+    if [[ !  -d "$DOKKU_ROOT/.mysql/dumps/$APP" ]]; then
+        mkdir $DOKKU_ROOT/.mysql/dumps/$APP
+        chown dokku $DOKKU_ROOT/.mysql/dumps/$APP
+    fi
+
+    dokku mysql:save_dump $APP $DOKKU_ROOT/.mysql/dumps/$APP/$APP.`date "+%Y-%m-%d-%T"`.sql
+
+    echo "Old sql dump saved"
+
+    DB_PASSWORD=$(cat "$DOKKU_ROOT/.mysql/pwd_$APP")
+    
+   
+    if [[ ! -f $FILE_NAME ]]; then
+      echo "File $FILE_NAME does not exist"
+      exit 1
+    fi
+
+
+    mysql -uadmin -h$IP -p$DB_PASSWORD -P3306 -f --quick db < $FILE_NAME
+    echo "Database dump loaded"
+
+    ;;
+  
   mysql:logs)
     DB_IMAGE=mysql/$APP
     ID=$(docker ps -a | grep "$DB_IMAGE" |  awk '{print $1}')
@@ -162,6 +236,8 @@ case "$1" in
     mysql:info <app>       Display database informations
     mysql:link <app> <db>  Link an app to a MySql database
     mysql:logs <app>       Display last logs from MySql container
+    mysql:save_dump <db> <filename> Save dump from container
+    mysql:load_dump <db> <filename> Load dump to container
 EOF
     ;;
 
